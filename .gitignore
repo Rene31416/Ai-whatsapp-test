@@ -12,3 +12,4 @@ cdk.out
 *.lambda_venv
 
 package-lock.json
+__pycache__
