@@ -4,7 +4,7 @@ from foundational_llm.llms import llm
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
 from langchain.agents.middleware import AgentMiddleware
-from tools.tools import schudule_appointments_tool, get_clinic_info_tool, get_doctors_info, consult_availability_tool_by_day_and_doctor_id, re_schudule_appointments_tool
+from tools.tools import schudule_appointments_tool, get_clinic_info_tool, get_doctors_info,re_schudule_appointments_tool, delete_appointments_tool, consult_availability_by_doctor_id_tool, consult_availability_by_user_id_tool
 from checkpoints.dynamo_memory_checkpoints import dynamo_checkpointer
 from utils.types import Context
 
@@ -24,8 +24,8 @@ summarization_middleware: Sequence[AgentMiddleware[Any, Context | None]] = cast(
 
 master_agent = create_agent(
     llm,
-    tools=[schudule_appointments_tool, get_clinic_info_tool, get_doctors_info, consult_availability_tool_by_day_and_doctor_id, re_schudule_appointments_tool],
-    middleware=summarization_middleware,
+    tools=[schudule_appointments_tool, get_clinic_info_tool, get_doctors_info, re_schudule_appointments_tool, delete_appointments_tool, consult_availability_by_user_id_tool, consult_availability_by_doctor_id_tool],
+    #middleware=summarization_middleware,
         system_prompt=(
         """
         You are an agent for a dental clinic.\n
@@ -58,9 +58,25 @@ master_agent = create_agent(
 
         For consult doctors availablities:\n
             To consult a doctor availability you will need:\n
-                - Doctor name: the name of the doctor to check availability with\n
-                - Date: date to consult the doctor's calendar\n
+                - From: start of the time range to consult in ISO format)
+                - To: end of the time range to consult in ISO format
+                NOTE: dont ask the user especifically for 'from' and 'to' deduce it base on conversation unlees it express something directly like 'Do I have an appoinment on XxxXx' or 'At what time the dr 'XxXxx' is available next friday' => then respond with all the available spots.\n
+                Use a MAX range of one week to consult, this is a rule so if the users wants for a bigger range you will have to refuse it\n
             Use the tool 'consult_availability_tool_by_day_and_doctor_id' to consult the availability\n\n
+
+        for consult appoinments of users:
+            To consult  availability you will need:\n
+                - From: start of the time range to consult in ISO format)
+                - To: end of the time range to consult in ISO format
+                NOTE: dont ask the user especifically for 'from' and 'to' deduce it base on conversation unlees it express something directly like 'When this week is avaialble do I have appointments' or 'Can you check at what time is my appointment this Friday?' => then respond with all the available spots.\n
+                Use a MAX range of one week to consult, this is a rule so if the users wants for a bigger range you will have to refuse it\n
+            Use the tool 'consult_availability_tool_by_day_and_doctor_id' to consult the availability\n\n
+
+        For delete appointments in the calendar:\n
+            To delete appointments in the calendar you will need:\n
+                - Appointment Id: Unique identifier of the appointment\n
+            Use the tool 'delete_appointments_tool' to delete an appoinment from calendar\n
+            For now using the appointment Id is the only way to delete appointments\n\n
 
         - If a detail is missing from the facts, ask a short clarifying question.\n
         """
