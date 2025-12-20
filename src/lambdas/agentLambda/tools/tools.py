@@ -5,7 +5,8 @@ from clients.api_clients import (
     fetch_doctors_info,
     fetch_post_appointments_api,
     fetch_get_appointments_by_doctor_id_api,
-    fetch_patch_appointments_by_appointment_id
+    fetch_patch_appointments_by_appointment_id,
+    fetch_delete_appointments_api,
 )
 from typing import Annotated
 from utils.types import Context
@@ -58,7 +59,7 @@ class re_schedule_apointment_input(BaseModel):
     new_end: str = Field(
         description="New end date to re schedule the appointment in ISO format"
     )
-    apointment_date: str = Field(
+    appointment_id: str = Field(
         description="Unique identifier that was deliver once the appointment was scheduled"
     )
 
@@ -70,84 +71,72 @@ class re_schedule_apointment_input(BaseModel):
 def re_schudule_appointments_tool(
     runtime: ToolRuntime[Context],
     new_start: str,
-    new_end:str,
+    new_end: str,
     appointment_id: str,
 ) -> dict:
     """
     Use this tool when you need to re schedule an event
     """
     tenant_id = runtime.context.tenant_id
+    print(f"re_schedule appointment tool ")
 
-    res= fetch_patch_appointments_by_appointment_id(appointment_id, new_start, new_end, tenant_id)
+    res = fetch_patch_appointments_by_appointment_id(
+        appointment_id, new_start, new_end, tenant_id
+    )
     return {"sucess": res}
 
 
 class delete_apointment_input(BaseModel):
-    """Inputs fot schedule appointmen."""
+    """Inputs fot delete appointment."""
 
-    doctor_id: str = Field(description="doctorId of the doctor to schedule with")
-    apointment_date: str = Field(
-        description="Date when the appointment will be schedule"
-    )
-    patient_name: str = Field(
-        description="Name of the patient to schedule the appointment"
-    )
+    appointment_id: str = Field(description="Id of the appointment to delete")
 
 
 @tool(
     description="Use this tool when you are sure you need to delete an appointment",
-    args_schema=schedule_apointment_input,
+    args_schema=delete_apointment_input,
 )
 def delete_appointments_tool(
-    runtime: ToolRuntime[Context],
-    doctor_id: str,
-    apointment_date: str,
-    patient_name: str,
-    duration_minutes: int = 30,
+    runtime: ToolRuntime[Context], appointment_id: str
 ) -> dict:
     """
     Use this tool when you are sure you need to delete an appointment
     """
     tenant_id = runtime.context.tenant_id
-    user_id = runtime.context.user_id
 
-    fetch_post_appointments_api(
-        tenant_id, user_id, doctor_id, apointment_date, duration_minutes, patient_name
-    )
-    print(
-        f"This will schedule a metting with -> {user_id} and {tenant_id} pass it though the context it will last {duration_minutes}"
-    )
-    res = f"Metting scheluded with for context {doctor_id} at {apointment_date}"
+    res = fetch_delete_appointments_api(tenant_id, appointment_id)
+    print(f"Appointment with {appointment_id} deleted {res}")
     return {"sucess": res}
 
 
 #######################################
-class consult_availability_tool_by_day_and_doctor_id_input(BaseModel):
-    """Inputs for consult the availability by day and doctor_id appointmen."""
 
-    doctor_id: str = Field(description="doctorId of the doctor fot consult with")
-    appointment_date: str = Field(
-        description="Date to consult doctor availability, only accepts formats: '2024-06-15' -> 'YYYY-MM-DD'"
-    )
+
+class consult_availability_by_doctor_id_input(BaseModel):
+    """Inputs for consults the appointments for a user"""
+
+    doctor_id: str = Field(description="doctor_id of the doctor to consult with")
+    from_iso: str = Field(description="Start range to consult with in ISO format")
+    to_iso: str = Field(description="End range to consult in ISO format")
 
 
 @tool(
-    description="Use this tool when you need to consult the availability of a doctor in a specific date in the calendar",
-    args_schema=consult_availability_tool_by_day_and_doctor_id_input,
+    description="Use this tool when you need to consult the availability of a doctor in a specific range of time in the calendar",
+    args_schema=consult_availability_by_doctor_id_input,
 )
-def consult_availability_tool_by_day_and_doctor_id(
-    runtime: ToolRuntime[Context], doctor_id: str, appointment_date: str
+def consult_availability_by_doctor_id_tool(
+    runtime: ToolRuntime[Context], doctor_id: str, from_iso: str, to_iso: str
 ) -> dict:
     """
-    Use this tool when you need to consult the availability of a doctor in a specific date in the calendar, it returns an array with all the calendar events for that specific doctor
+    Use this tool when you need to consult the availability of a doctor in a specific range of time in the calendar
     """
-    print(f"Cheching Availability for doctor {doctor_id} on {appointment_date}\n")
+    print(
+        f"Cheching Availability for doctor_id {doctor_id} from {from_iso} to {to_iso}\n"
+    )
     tenant_id = runtime.context.tenant_id
     res = fetch_get_appointments_by_doctor_id_api(
-        tenant_id, doctor_id, appointment_date
+        tenant_id, doctor_id, from_iso, to_iso
     )
-    print(f"Availability for doctor {doctor_id} on {appointment_date}")
-
     print(res)
     return res
 
@@ -155,20 +144,33 @@ def consult_availability_tool_by_day_and_doctor_id(
 #############################################
 
 
+class consult_availability_by_user_id_input(BaseModel):
+    """Inputs for consults the appointments for a user"""
+
+    from_iso: str = Field(description="Start range to consult with in ISO format")
+    to_iso: str = Field(description="End range to consult in ISO format")
+
+
 @tool(
-    description="Use this tool when you need to schedule an event",
-    args_schema=schedule_apointment_input,
+    description="Use this tool to consult the appointments for a user in a specific range of time",
+    args_schema=consult_availability_by_user_id_input,
 )
-def check_availability_appointment_tool(
-    doctor_name: str, doctor_id: str, schedule_date: str
+def consult_availability_by_user_id_tool(
+    runtime: ToolRuntime[Context], from_iso: str, to_iso: str
 ) -> dict:
     """
-    Use this when the user wants to create calendar appointments.
+    Use this tool when you need to consult the appoinments of a user in a specific range of time
     """
 
-    print({"dodctorId": doctor_id, "schedule": schedule_date})
-    res = f"Metting scheluded with doctor: ${doctor_name} at ${schedule_date}"
-    return {"sucess": res}
+    user_id = runtime.context.user_id
+    tenant_id = runtime.context.tenant_id
+    print(f"Cheching Availability for user {user_id} from {from_iso} to {to_iso}\n")
+    res = fetch_get_appointments_by_doctor_id_api(tenant_id, user_id, from_iso, to_iso)
+    print(res)
+    return res
+
+
+#########################################
 
 
 @tool(description="Use this tool to get the information about the clinic")
