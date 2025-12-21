@@ -1,15 +1,17 @@
 from langchain.tools import tool, ToolRuntime
 from pydantic import BaseModel, Field
-from clients.api_clients import (
+from agentLambda.clients.api_clients import (
     fetch_clinic_context,
     fetch_doctors_info,
+    fetch_get_appointments_by_user_id_api,
     fetch_post_appointments_api,
     fetch_get_appointments_by_doctor_id_api,
     fetch_patch_appointments_by_appointment_id,
     fetch_delete_appointments_api,
 )
-from typing import Annotated
-from utils.types import Context
+from agentLambda.utils.types import Context
+
+#############################################
 
 
 class schedule_apointment_input(BaseModel):
@@ -47,7 +49,11 @@ def schudule_appointments_tool(
     print(
         f"This will schedule a metting with -> {user_id} and {tenant_id} pass it though the context it will last {duration_minutes}"
     )
+    # Returns the appointment payload coming from the scheduling API request.
     return res
+
+
+#############################################
 
 
 class re_schedule_apointment_input(BaseModel):
@@ -83,7 +89,11 @@ def re_schudule_appointments_tool(
     res = fetch_patch_appointments_by_appointment_id(
         appointment_id, new_start, new_end, tenant_id
     )
+    # Signals the updated time window for an existing appointment inside the tenant calendar.
     return {"sucess": res}
+
+
+#############################################
 
 
 class delete_apointment_input(BaseModel):
@@ -106,6 +116,7 @@ def delete_appointments_tool(
 
     res = fetch_delete_appointments_api(tenant_id, appointment_id)
     print(f"Appointment with {appointment_id} deleted {res}")
+    # Confirms deletion of the provided appointment_id for the tenant.
     return {"sucess": res}
 
 
@@ -138,6 +149,7 @@ def consult_availability_by_doctor_id_tool(
         tenant_id, doctor_id, from_iso, to_iso
     )
     print(res)
+    # Surfaces the doctor's availability within the requested date range.
     return res
 
 
@@ -165,8 +177,9 @@ def consult_availability_by_user_id_tool(
     user_id = runtime.context.user_id
     tenant_id = runtime.context.tenant_id
     print(f"Cheching Availability for user {user_id} from {from_iso} to {to_iso}\n")
-    res = fetch_get_appointments_by_doctor_id_api(tenant_id, user_id, from_iso, to_iso)
+    res = fetch_get_appointments_by_user_id_api(tenant_id, user_id, from_iso, to_iso)
     print(res)
+    # Provides the current user's appointments between the requested timestamps.
     return res
 
 
@@ -179,6 +192,7 @@ def get_clinic_info_tool() -> dict:
     Use this when the user wants to create calendar appointments.
     """
     res = fetch_clinic_context()
+    # Gives back the static clinic context (hours, address, etc.) for grounding other answers.
     return res
 
 
@@ -187,4 +201,5 @@ def get_clinic_info_tool() -> dict:
 )
 def get_doctors_info():
     res = fetch_doctors_info()
+    # Lists all doctors along with their metadata for downstream selection.
     return res
