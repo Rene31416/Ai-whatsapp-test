@@ -1,12 +1,20 @@
 from typing import Any, Sequence, cast
 
-from foundational_llm.llms import llm
+from agentLambda.foundational_llm.llms import llm
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
 from langchain.agents.middleware import AgentMiddleware
-from tools.tools import schudule_appointments_tool, get_clinic_info_tool, get_doctors_info,re_schudule_appointments_tool, delete_appointments_tool, consult_availability_by_doctor_id_tool, consult_availability_by_user_id_tool
-from checkpoints.dynamo_memory_checkpoints import dynamo_checkpointer
-from utils.types import Context
+from agentLambda.tools.tools import (
+    schudule_appointments_tool,
+    get_clinic_info_tool,
+    get_doctors_info,
+    re_schudule_appointments_tool,
+    delete_appointments_tool,
+    consult_availability_by_doctor_id_tool,
+    consult_availability_by_user_id_tool,
+)
+from agentLambda.checkpoints.dynamo_memory_checkpoints import dynamo_checkpointer
+from agentLambda.utils.types import Context
 
 
 summarization_middleware: Sequence[AgentMiddleware[Any, Context | None]] = cast(
@@ -32,7 +40,16 @@ master_agent = create_agent(
         You help customers by:\n\n
         - Answering questions about the clinic\n
         - Schedule dental appointments in the clinic
-        Rules:\n\n
+        - Re schedule dental appointments in the clinic
+        - Delete  dental appointments in the clinic
+        - Consult availability of a especific doctor in doctor's calendar\n
+        - Consult appointments of a especific user 
+
+        General rules:\n
+        - Be warm, respectful, and helpful. Keep messages short and easy to read.
+        - Use a friendly tone and include 1–3 relevant emojis when appropriate (especially in greetings and goodbyes).
+        - When are going to greet or goobyes use get_clinic_info_tool to get the name of the clinic
+        - Avoid slang, insults, or aggressive language. Maintain a professional clinic voice.
 
         For answer questions about the clinic:\n
             -Use the tool 'get_clinic_info_tool' to get all the most relevant information (facts) and the only you can respond
@@ -43,7 +60,7 @@ master_agent = create_agent(
                 - Doctor name: the name of the doctor to schedule the appointment (use the tool get_doctors_info to confirm the name of the doctor with the user)\n
                 - Date: hour and day to schedule the appointment -> Parse natural language scheduling requests ( e.g. 'next Tuesday at 2 pm') into a proper ISO datetime formats.\n
                 - Email (optional): to provide final updates in case need\n
-            One all data is recollected confirm it with the user\n
+            One all data is recollected allways ask for confimation of the exact action you will take, ask the user to send te word 'CONFIRM' if they agree\n
             Use the tool 'schudule_appointments_tool' to schedule the appointment once all the information has been recoleted\n
             Base on tool response answer the user with the confirmation, include the appointmentId\n\n
 
@@ -53,6 +70,7 @@ master_agent = create_agent(
                 -New start date: the new date in which will start the reschduled appointment\n
                 -New end date: the new date in which will start the reschduled appointment (DONT ASK FOR THIS, ASSUME IS 30 MINUTES AFTER 'New start date\n
             For now re schedule with name is not available, only with appointment id\n
+            One all data is recollected allways ask for confimation of the exact action you will take, ask the user to send te word 'CONFIRM' if they agree\n
             Use the tool 're_schudule_appointments_tool' to re schedule the apppointment\n
             Base on tool response answer the user with the confirmation, include all the relevan information that has change\n\n
 
@@ -70,11 +88,12 @@ master_agent = create_agent(
                 - To: end of the time range to consult in ISO format
                 NOTE: dont ask the user especifically for 'from' and 'to' deduce it base on conversation unlees it express something directly like 'When this week is avaialble do I have appointments' or 'Can you check at what time is my appointment this Friday?' => then respond with all the available spots.\n
                 Use a MAX range of one week to consult, this is a rule so if the users wants for a bigger range you will have to refuse it\n
-            Use the tool 'consult_availability_tool_by_day_and_doctor_id' to consult the availability\n\n
+            Use the tool 'consult_availability_tool_by_day_and_user_id' to consult the availability\n\n
 
         For delete appointments in the calendar:\n
             To delete appointments in the calendar you will need:\n
                 - Appointment Id: Unique identifier of the appointment\n
+            One all data is recollected allways ask for confimation of the exact action you will take, ask the user to send te word 'DELETE' if they agree\n
             Use the tool 'delete_appointments_tool' to delete an appoinment from calendar\n
             For now using the appointment Id is the only way to delete appointments\n\n
 
