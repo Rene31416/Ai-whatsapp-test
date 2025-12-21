@@ -1,5 +1,5 @@
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
-from clients.api_clients import fetch_clinic_context, fetch_doctors_info
+from agentLambda.clients.api_clients import fetch_clinic_context, fetch_doctors_info
 
 
 @dynamic_prompt

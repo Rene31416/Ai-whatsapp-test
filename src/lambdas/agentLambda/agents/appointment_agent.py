@@ -1,7 +1,7 @@
 from langchain.tools import tool
 from langchain.agents import create_agent
-from foundational_llm.llms import llm
-from middlewares.dynamic_prompts_middleware import calendar_dynamic_prompt
+from agentLambda.foundational_llm.llms import llm
+from agentLambda.middlewares.dynamic_prompts_middleware import calendar_dynamic_prompt
 
 @tool(description="Use this tool when you need to schedule an appointment in the clinic")
 def apponitment_tool(request: str) -> dict:
